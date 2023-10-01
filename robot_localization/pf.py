@@ -8,7 +8,7 @@ from rclpy.time import Time
 from rclpy.node import Node
 from std_msgs.msg import Header
 from sensor_msgs.msg import LaserScan
-from nav2_msgs.msg import ParticleCloud, Particle
+from nav2_msgs.msg import ParticleCloud
 from nav2_msgs.msg import Particle as Nav2Particle
 from geometry_msgs.msg import PoseWithCovarianceStamped, Pose, Point, Quaternion
 from rclpy.duration import Duration
@@ -70,7 +70,7 @@ class ParticleFilter(Node):
             thread: this thread runs your main loop
     """
     def __init__(self):
-        super().__init__('pf')
+        super().__init__('pf') # type: ignore
         self.base_frame = "base_footprint"   # the frame of the robot base
         self.map_frame = "map"          # the name of the map coordinate frame
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
@@ -114,7 +114,7 @@ class ParticleFilter(Node):
         """ This function takes care of sending out the map to odom transform """
         if self.last_scan_timestamp is None:
             return
-        postdated_timestamp = Time.from_msg(self.last_scan_timestamp) + Duration(seconds=0.1)
+        postdated_timestamp = Time.from_msg(self.last_scan_timestamp) + Duration(seconds=0.1) # type: ignore
         self.transform_helper.send_last_map_to_odom_transform(self.map_frame, self.odom_frame, postdated_timestamp)
 
     def loop_wrapper(self):
@@ -141,7 +141,7 @@ class ParticleFilter(Node):
                                                                            msg.header.stamp)
         if new_pose is None:
             # we were unable to get the pose of the robot corresponding to the scan timestamp
-            if delta_t is not None and delta_t < Duration(seconds=0.0):
+            if delta_t is not None and delta_t < Duration(seconds=0.0):  # type: ignore
                 # we will never get this transform, since it is before our oldest one
                 self.scan_to_process = None
             return
@@ -261,7 +261,7 @@ class ParticleFilter(Node):
         msg.header.frame_id = self.map_frame
         msg.header.stamp = timestamp
         for p in self.particle_cloud:
-            msg.particles.append(Nav2Particle(pose=p.as_pose(), weight=p.w))
+            msg.particles.append(Nav2Particle(pose=p.as_pose(), weight=p.w))  # type: ignore
         self.particle_pub.publish(msg)
 
     def scan_received(self, msg):

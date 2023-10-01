@@ -46,7 +46,7 @@ class TFHelper(object):
         self.tf_listener = TransformListener(self.tf_buffer, node)
         self.tf_broadcaster = TransformBroadcaster(node)
         self.node = node        # hold onto this for logging
-        self.transform_tolerance = Duration(seconds=0.08)    # tolerance for mismatch between scan and odom timestamp
+        self.transform_tolerance = Duration(seconds=0.08) # type: ignore    # tolerance for mismatch between scan and odom timestamp 
 
     def convert_translation_rotation_to_pose(self, translation, rotation):
         """ Convert from representation of a pose as translation and rotation
@@ -146,7 +146,7 @@ class TFHelper(object):
                      delta in time between the requested time and the most recent transform available """
         if self.tf_buffer.can_transform(odom_frame, base_frame, timestamp):
             # we can get the pose at the exact right time
-            return (stamped_transform_to_pose(self.tf_buffer.lookup_transform(odom_frame, base_frame, timestamp)), Duration(seconds=0.0))
+            return (stamped_transform_to_pose(self.tf_buffer.lookup_transform(odom_frame, base_frame, timestamp)), Duration(seconds=0.0))  # type: ignore
         elif self.tf_buffer.can_transform(odom_frame,
                                           base_frame,
                                           Time()):
