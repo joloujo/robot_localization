@@ -99,7 +99,7 @@ class ParticleFilter(Node):
         # this is the current scan that our run_loop should process
         self.scan_to_process = None
         # your particle cloud will go here
-        self.particle_cloud = []
+        self.particle_cloud: list[Particle] = []
 
         self.current_odom_xy_theta = []
         self.occupancy_field = OccupancyField(self)
@@ -253,8 +253,12 @@ class ParticleFilter(Node):
 
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
-        # TODO: implement this
-        pass
+        total_weight = 0
+        for p in self.particle_cloud:
+            total_weight += p.w
+        
+        for p in self.particle_cloud:
+            p.w /= total_weight
 
     def publish_particles(self, timestamp):
         msg = ParticleCloud()
