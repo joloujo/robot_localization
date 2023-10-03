@@ -246,7 +246,19 @@ class ParticleFilter(Node):
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         self.particle_cloud = []
-        # TODO create particles
+        
+        position_sigma = 1/6    # The spread of the x and y positions, should keep most points within 1 meter circle centered on mean x and y
+        angle_sigma = np.pi/12  # The spread of the angles, should keep most points within 45 degrees left or right of mean
+
+        # create n_particles particles
+        for i in range(self.n_particles):
+            # sample starting values with a normal distribution
+            x = np.random.normal(xy_theta[0], position_sigma)
+            y = np.random.normal(xy_theta[1], position_sigma)
+            theta = np.random.normal(xy_theta[1], angle_sigma)
+            
+            # add a particle to the particle cloud with the random parameters
+            self.particle_cloud.append(Particle(x, y, theta))
 
         self.normalize_particles()
         self.update_robot_pose()
