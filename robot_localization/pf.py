@@ -221,14 +221,10 @@ class ParticleFilter(Node):
             particle is selected in the resampling step.  You may want to make use of the given helper
             function draw_random_sample in helper_functions.py.
         """
-        # make sure the distribution is normalized
-        self.normalize_particles()
-        # TODO: fill out the rest of the implementation
 
         #
         # 1. Remove particles with a probability (0-1) less than cutoff, which depends on how
-        #    sensitive the weighting algorithm is. Keep track of how many are deleted for
-        #    computational efficiency.
+        #    sensitive the weighting algorithm is.
         # 2. Normalize probablility values for remaining particles into a single distribution.
         #    (should there be an offset here? For example, should the probabilities be remapped to
         #    a 0-1 range? Maybe something less aggressive? Maybe upper bound ?)
@@ -240,7 +236,33 @@ class ParticleFilter(Node):
         #    implement successfully or run quickly.
         #
 
+        # get rid of particles that are not a good match for the sensor data
+        cutoff = 0.8
+        matching_particles = [particle for particle in self.particle_cloud if particle.w >= cutoff]
+        num_deleted = self.n_particles - len(matching_particles)
+        self.particle_cloud = matching_particles
 
+        # normalize the weights of the remaining particles
+        self.normalize_particles()
+
+        probability = np.array([particle.norm_w for particle in self.particle_cloud])
+        cumulative_probability = probability.cumsum()
+
+        new_particles: list[Particle] = []
+        for i in range(num_deleted):
+            selected_matching_particle: Particle = self.particle_cloud[np.min([cumulative_probability > np.random.rand()])] # TODO Binary search 🥺 👉👈
+            
+            position_noise = 1/12   # The spread of the x and y positions, should keep most points within 1 meter circle centered on mean x and y
+            angle_noise = np.pi/24  # The spread of the angles, should keep most points within 45 degrees left or right of mean
+
+            x = np.random.normal(selected_matching_particle.x, position_noise)
+            y = np.random.normal(selected_matching_particle.y, position_noise)
+            theta = np.random.normal(selected_matching_particle.theta, angle_noise)
+
+            new_particles.append(Particle(x, y, theta)) # could this just append to the self.particle_cloud array?
+
+        for particle in new_particles:
+            self.particle_cloud.append(particle)
 
     def update_particles_with_laser(self, r, theta):
         """ Updates the particle weights in response to the scan data
