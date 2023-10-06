@@ -36,6 +36,7 @@ class Particle(object):
             theta: the yaw of KeyboardInterruptthe hypothesis relative to the map frame
             w: the particle weight (the class does not ensure that particle weights are normalized """ 
         self.w = w
+        self.norm_w: float | None = None
         self.theta = theta
         self.x = x
         self.y = y
@@ -224,6 +225,23 @@ class ParticleFilter(Node):
         self.normalize_particles()
         # TODO: fill out the rest of the implementation
 
+        #
+        # 1. Remove particles with a probability (0-1) less than cutoff, which depends on how
+        #    sensitive the weighting algorithm is. Keep track of how many are deleted for
+        #    computational efficiency.
+        # 2. Normalize probablility values for remaining particles into a single distribution.
+        #    (should there be an offset here? For example, should the probabilities be remapped to
+        #    a 0-1 range? Maybe something less aggressive? Maybe upper bound ?)
+        # 3. Find the cumulative probability for each particle so a uniform distribution can be
+        #    used to select particles.
+        # 4. Resample all of the deleted particles by picking a particle, using it's parameters,
+        #    and adding noise. The noise will have to be tuned, and I think would ideally be
+        #    determined by the sperad of nearby particles, but I think this may be too complex to
+        #    implement successfully or run quickly.
+        #
+
+
+
     def update_particles_with_laser(self, r, theta):
         """ Updates the particle weights in response to the scan data
             r: the distance readings to obstacles
@@ -256,7 +274,7 @@ class ParticleFilter(Node):
             x = np.random.normal(xy_theta[0], position_sigma)
             y = np.random.normal(xy_theta[1], position_sigma)
             theta = np.random.normal(xy_theta[1], angle_sigma)
-            
+
             # add a particle to the particle cloud with the random parameters
             self.particle_cloud.append(Particle(x, y, theta))
 
@@ -265,12 +283,14 @@ class ParticleFilter(Node):
 
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
+        # Find the sum of the weights of all of the particles
         total_weight = 0
         for p in self.particle_cloud:
             total_weight += p.w
         
+        # Divide the weight of each particle by the sum of all particle weights to normalize
         for p in self.particle_cloud:
-            p.w /= total_weight
+            p.norm_w = p.w / total_weight
 
     def publish_particles(self, timestamp):
         msg = ParticleCloud()
