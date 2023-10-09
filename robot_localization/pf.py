@@ -36,7 +36,7 @@ class Particle(object):
             theta: the yaw of KeyboardInterruptthe hypothesis relative to the map frame
             w: the particle weight (the class does not ensure that particle weights are normalized """ 
         self.w = w
-        self.norm_w: float | None = None
+        self.norm_w: float = 1.0
         self.theta = theta
         self.x = x
         self.y = y
@@ -148,13 +148,13 @@ class ParticleFilter(Node):
             return
         
         (r, theta) = self.transform_helper.convert_scan_to_polar_in_robot_frame(msg, self.base_frame)
-        print("r[0]={0}, theta[0]={1}".format(r[0], theta[0]))
+        # print("r[0]={0}, theta[0]={1}".format(r[0], theta[0]))
         # clear the current scan so that we can process the next one
         self.scan_to_process = None
 
         self.odom_pose = new_pose
         new_odom_xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
-        print("x: {0}, y: {1}, yaw: {2}".format(*new_odom_xy_theta))
+        # print("x: {0}, y: {1}, yaw: {2}".format(*new_odom_xy_theta))
 
         if not self.current_odom_xy_theta:
             self.current_odom_xy_theta = new_odom_xy_theta
@@ -222,47 +222,55 @@ class ParticleFilter(Node):
             function draw_random_sample in helper_functions.py.
         """
 
-        #
-        # 1. Remove particles with a probability (0-1) less than cutoff, which depends on how
-        #    sensitive the weighting algorithm is.
-        # 2. Normalize probablility values for remaining particles into a single distribution.
-        #    (should there be an offset here? For example, should the probabilities be remapped to
-        #    a 0-1 range? Maybe something less aggressive? Maybe upper bound ?)
-        # 3. Find the cumulative probability for each particle so a uniform distribution can be
-        #    used to select particles.
-        # 4. Resample all of the deleted particles by picking a particle, using it's parameters,
-        #    and adding noise. The noise will have to be tuned, and I think would ideally be
-        #    determined by the sperad of nearby particles, but I think this may be too complex to
-        #    implement successfully or run quickly.
-        #
+        # the number of particles to keep from the original particles, a proportion from 0-1
+        amount_to_keep = 0.25
 
-        # get rid of particles that are not a good match for the sensor data
-        cutoff = 0.8
-        matching_particles = [particle for particle in self.particle_cloud if particle.w >= cutoff]
-        num_deleted = self.n_particles - len(matching_particles)
-        self.particle_cloud = matching_particles
+        # get a list of the weights of the particles and sort them, keeping track of the indicies
+        weights = []
+        for particle in self.particle_cloud:
+            weights.append(particle.w)
+        sorted_indexes = np.argsort(weights)
+
+        # get the n particles with the highest weights, n being determined by the amount_to_keep
+        worst_keeper_index = round(self.n_particles * (1-amount_to_keep))
+        best_particle_indexes  = sorted_indexes[worst_keeper_index:self.n_particles-1]
+        best_particles = [self.particle_cloud[i] for i in best_particle_indexes]
+        self.particle_cloud = best_particles
 
         # normalize the weights of the remaining particles
         self.normalize_particles()
 
+        # find the cumulative probability for that particles can be selected based on their probability with a uniformly distributed random number
         probability = np.array([particle.norm_w for particle in self.particle_cloud])
         cumulative_probability = probability.cumsum()
 
+        # create a new set of particles based off the old particles, prefering more likely particles
         new_particles: list[Particle] = []
-        for i in range(num_deleted):
-            selected_matching_particle: Particle = self.particle_cloud[np.min([cumulative_probability > np.random.rand()])] # TODO Binary search 🥺 👉👈
+        for i in range(self.n_particles):
+            selection_array = np.array([cumulative_probability > np.random.rand()])
+            selection_index = np.searchsorted(selection_array.flatten(), 1)
+            selected_matching_particle: Particle = self.particle_cloud[selection_index]
             
-            position_noise = 1/12   # The spread of the x and y positions, should keep most points within 1 meter circle centered on mean x and y
-            angle_noise = np.pi/24  # The spread of the angles, should keep most points within 45 degrees left or right of mean
+            position_noise = 1/12   # The spread of the x and y positions, should keep most points within 0.5 meter circle centered on mean x and y
+            angle_noise = np.pi/24  # The spread of the angles, should keep most points within 45 degrees centered on mean (22.5 degrees to either side)
 
+            # select parameters for the new partcile centered at the chosen partcile but with some noise
             x = np.random.normal(selected_matching_particle.x, position_noise)
             y = np.random.normal(selected_matching_particle.y, position_noise)
             theta = np.random.normal(selected_matching_particle.theta, angle_noise)
 
-            new_particles.append(Particle(x, y, theta)) # could this just append to the self.particle_cloud array?
+            new_particles.append(Particle(x, y, theta))
+        
+        # replace the old particles with the new particles
+        self.particle_cloud = new_particles
 
-        for particle in new_particles:
-            self.particle_cloud.append(particle)
+        #
+        # Thoughts: Should it really prefer more likely particles? It might be interesting to try
+        # the opposite: finding the inverse weights of each and then selecting based on that. This
+        # might make it so that there would be a stable equalibrium for a multimodal distribution.
+        # This also only works when only the most likely particles are selected, otherwise it
+        # would be a pretty terrible selection system.
+        #
 
     def update_particles_with_laser(self, r, theta):
         """ Updates the particle weights in response to the scan data
@@ -295,7 +303,7 @@ class ParticleFilter(Node):
             # sample starting values with a normal distribution
             x = np.random.normal(xy_theta[0], position_sigma)
             y = np.random.normal(xy_theta[1], position_sigma)
-            theta = np.random.normal(xy_theta[1], angle_sigma)
+            theta = np.random.normal(xy_theta[2], angle_sigma)
 
             # add a particle to the particle cloud with the random parameters
             self.particle_cloud.append(Particle(x, y, theta))
