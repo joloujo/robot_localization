@@ -49,6 +49,13 @@ class Particle(object):
 
     # TODO: define additional helper functions if needed
 
+    def turn(self, delta_theta):
+        self.theta += delta_theta
+
+    def drive(self, delta_dist):
+        self.x += delta_dist*np.cos(self.theta)
+        self.y += delta_dist*np.sin(self.theta)
+
 class ParticleFilter(Node):
     """ The class that represents a Particle Filter ROS Node
         Attributes list:
@@ -187,7 +194,19 @@ class ParticleFilter(Node):
 
         # TODO: assign the latest pose into self.robot_pose as a geometry_msgs.Pose object
         # just to get started we will fix the robot's pose to always be at the origin
-        self.robot_pose = Pose()
+        x_avg = 0.0
+        y_avg = 0.0
+        cos_avg = 0.0
+        sin_avg = 0.0
+        for p in self.particle_cloud:
+            x_avg += (p.x)*(p.w)
+            y_avg += (p.y)*(p.w)
+            cos_avg += np.cos(p.theta)*(p.w)
+            sin_avg += np.sin(p.theta)*(p.w)
+        theta_avg = np.arctan2(sin_avg, cos_avg)
+        print(x_avg, y_avg, theta_avg)
+        self.robot_pose = Particle(x_avg, y_avg, theta_avg, 1).as_pose()
+
         if hasattr(self, 'odom_pose'):
             self.transform_helper.fix_map_to_odom_transform(self.robot_pose,
                                                             self.odom_pose)
@@ -212,6 +231,14 @@ class ParticleFilter(Node):
         else:
             self.current_odom_xy_theta = new_odom_xy_theta
             return
+        theta1 = np.arctan2(delta[1], delta[0]) - old_odom_xy_theta[2]
+        dist = np.sqrt(delta[0]**2 + delta[1]**2)
+        theta2 = new_odom_xy_theta[2] - np.arctan2(delta[1], delta[0])
+        for p in self.particle_cloud:
+            p.turn(theta1+np.random.randn()*0.01)
+            p.drive(dist+np.random.randn()*0.1)
+            p.turn(theta2+np.random.randn()*0.01)
+        
 
         # TODO: modify particles using delta
 
@@ -278,6 +305,19 @@ class ParticleFilter(Node):
             theta: the angle relative to the robot frame for each corresponding reading 
         """
         # TODO: implement this
+        for p in self.particle_cloud:
+            for r_i, theta_i in zip(r, theta):
+                if np.isinf(r_i):
+                    continue
+                x = r_i*np.cos(p.theta + theta_i)
+                y = r_i*np.sin(p.theta + theta_i)
+                obstacle_dist = self.occupancy_field.get_closest_obstacle_distance(x,y)
+                if not np.isnan(obstacle_dist):
+                    if obstacle_dist < 0.15:
+                        p.w += 1
+
+
+        self.normalize_particles()
         pass
 
     def update_initial_pose(self, msg):
@@ -294,7 +334,7 @@ class ParticleFilter(Node):
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         self.particle_cloud = []
-        
+
         position_sigma = 1/6    # The spread of the x and y positions, should keep most points within 1 meter circle centered on mean x and y
         angle_sigma = np.pi/12  # The spread of the angles, should keep most points within 45 degrees left or right of mean
 
