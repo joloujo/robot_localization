@@ -1,0 +1,1 @@
+The bag files associated with this project are located in this folder (`robot_localization/bags`). `macfirst_floor_take_1` and `macfirst_floor_take_2` were provided and used for testing, while `pf_macfirst_floor_take_1` is a demonstration of the particle filter working using the data from `macfirst_floor_take_1`.
