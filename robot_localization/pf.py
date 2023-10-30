@@ -250,7 +250,7 @@ class ParticleFilter(Node):
         """
 
         # the number of particles to keep from the original particles, a proportion from 0-1
-        amount_to_keep = 0.25
+        amount_to_keep = 0.10
 
         # get a list of the weights of the particles and sort them, keeping track of the indicies
         weights = []
@@ -278,8 +278,8 @@ class ParticleFilter(Node):
             selection_index = np.searchsorted(selection_array.flatten(), 1)
             selected_matching_particle: Particle = self.particle_cloud[selection_index]
             
-            position_noise = 1/12   # The spread of the x and y positions, should keep most points within 0.5 meter circle centered on mean x and y
-            angle_noise = np.pi/24  # The spread of the angles, should keep most points within 45 degrees centered on mean (22.5 degrees to either side)
+            position_noise = 1/24   # The spread of the x and y positions, should keep most points within 0.5 meter circle centered on mean x and y
+            angle_noise = np.pi/48  # The spread of the angles, should keep most points within 45 degrees centered on mean (22.5 degrees to either side)
 
             # select parameters for the new partcile centered at the chosen partcile but with some noise
             x = np.random.normal(selected_matching_particle.x, position_noise)
@@ -309,8 +309,19 @@ class ParticleFilter(Node):
             for r_i, theta_i in zip(r, theta):
                 if np.isinf(r_i):
                     continue
-                x = r_i*np.cos(p.theta + theta_i)
-                y = r_i*np.sin(p.theta + theta_i)
+
+                # Find scan hit location in particle frame
+                x_particle_frame = r_i*np.cos(theta_i)
+                y_particle_frame = r_i*np.sin(theta_i)
+
+                # Rotate into map frame
+                x_rotated_to_map_frame = x_particle_frame * np.cos(p.theta) - y_particle_frame * np.sin(p.theta) 
+                y_rotated_to_map_frame = x_particle_frame * np.sin(p.theta) + y_particle_frame * np.cos(p.theta) 
+
+                # Translate into map frame
+                x = x_rotated_to_map_frame + p.x
+                y = y_rotated_to_map_frame + p.y
+
                 obstacle_dist = self.occupancy_field.get_closest_obstacle_distance(x,y)
                 if not np.isnan(obstacle_dist):
                     if obstacle_dist < 0.15:

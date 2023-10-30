@@ -176,7 +176,7 @@ graph TD
 
 ### Resampling the particle cloud
 
-Particles are resampled to focus on regions with higher densities. This step ensures that particles representing unlikely positions are discarded and replaced with particles near more probable positions. This is done by keeping the 25% of particles with the highest weights, then sampling a new particle cloud based on those 'good' particles. For each new particle, an old particle is randomly selected from the 'good' particles, with higher weights being preferred, and the new particle's `x`, `y`, and `theta` are selected using Gaussian distributions centered on the selected old particle. This is similar to how the particles are initialized, except with a smaller standard deviation for both distributions. 
+Particles are resampled to focus on regions with higher densities. This step ensures that particles representing unlikely positions are discarded and replaced with particles near more probable positions. This is done by keeping the 10% of particles with the highest weights, then sampling a new particle cloud based on those 'good' particles. For each new particle, an old particle is randomly selected from the 'good' particles, with higher weights being preferred, and the new particle's `x`, `y`, and `theta` are selected using Gaussian distributions centered on the selected old particle. This is similar to how the particles are initialized, except with a smaller standard deviation for both distributions. 
 
 ```mermaid
 graph TD
@@ -196,7 +196,7 @@ graph TD
 - New particles are sampled from multiple old particles, effectively creating a multimodal distribution, allowing multiple  states to be kept at once.
 
 **Potential Challenges:**
-- If there are many possible states (roughly $0.25*n_{particles}$ or more), then not all possible states will be preserved.
+- If there are many possible states (roughly $0.1*n_{particles}$ or more), then not all possible states will be preserved.
 
 **Possible Improvements:**
 - Changing number of particles to sample from adaptively
