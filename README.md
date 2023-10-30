@@ -9,6 +9,10 @@
 
 # Robot Localization Project
 
+![macfirst_floor_take_1.gif](img/macfirst_floor_take_1.gif)
+
+*Our particle filter localizing using data from macfirst_floor_take_1 bag file*
+
 ### Introduction
 This is the final product from a project for Computational Robotics at Olin College of Engineering where we had to implement parts of a particle filter. Provided with a map and ROS2 bag files of a Neato robot navigating in the mapped environment, we needed to localize the robot using a particle filter. We were given a template to work from that had the basic structure of the particle filter, as well as some helper functions, but we had 6 steps we need to implement ourselves: 
 * Initializing the particle cloud
@@ -61,6 +65,10 @@ graph TD
 
 ### Initializing the particle cloud
 
+![Initialized Particles](img/initialized_particles.png)
+
+*The initialized particles in a roughly 1 meter circle aroudn the starting pose*
+
 The particle cloud is initialized around a given pose or the current odometry. Particles are spread around this pose using Gaussian distributions to account for the uncertainty in the initial pose. Two Gaussians are used, one for x and y position, and one for angle. In our case, the standard deviation of the Gaussians is tuned so most particles are within a 1 meter square of the given position ($\sigma=\frac{1}{6}m$) and within 45 degrees of the given angle ($\sigma=\frac{\pi}{12}rad$).
 
 ```mermaid
@@ -91,6 +99,10 @@ graph TD
 
 ### Updating the particle locations with odometry data
 
+![Particles updating with odom data](img/update_particles_with_odom_with_noise.gif)
+
+*Particles updating based on odometry data. This includes noise to simulate the uncertainty in the odom data, meaning the particles spread out as the robot moves.*
+
 The particles are updated based on the movement of the robot as indicated by odometry data. The change in position and orientation is calculated and applied to each particle.
 
 ```mermaid
@@ -107,6 +119,7 @@ graph TD
 
 **Design Decisions:**
 - The use of odometry data helps in predicting the movement of particles between sensor updates. This prediction step is crucial in particle filter algorithms.
+- A small amout of noise is applied to the transformation for each particles. This helps account for the uncertainty of the odometry data. 
   
 **Potential Challenges:**
 - Odometry data can accumulate errors over time, leading to drift.
